@@ -1,0 +1,531 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Hammer Throw Cage Sector Model</title>
+<style>
+  :root {
+    --bg:#f6f7f9; --panel:#ffffff; --text:#18202a; --muted:#687386;
+    --border:#d9dee7; --grid:#e8ebf0; --axis:#9aa5b4;
+    --official:#dcecff; --official-line:#3478c7;
+    --free:#dff3df; --free-line:#2c8a45;
+    --common:#bfe7c6; --danger:#b83b3b; --point:#222b36; --release:#b15a00;
+    --release2:#7a45a6;
+  }
+  * { box-sizing:border-box; }
+  body { margin:0; font-family:system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif; background:var(--bg); color:var(--text); }
+  .app { max-width:1200px; margin:0 auto; padding:16px; }
+  h1 { font-size:1.35rem; margin:0 0 6px; }
+  .intro { margin:0 0 16px; color:var(--muted); }
+  .layout { display:grid; grid-template-columns:320px 1fr; gap:16px; align-items:start; }
+  .panel { background:var(--panel); border:1px solid var(--border); border-radius:14px; padding:14px; }
+  fieldset { border:0; padding:0; margin:0 0 16px; }
+  legend { font-weight:650; margin-bottom:8px; }
+  .grid2 { display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  label { display:block; font-size:.9rem; color:var(--muted); }
+  input { width:100%; margin-top:4px; border:1px solid var(--border); border-radius:9px; padding:10px 11px; font-size:16px; background:#fff; color:var(--text); }
+  input:focus { outline:2px solid #80b8ef; outline-offset:1px; }
+  .signed-input { display:grid; grid-template-columns:1fr 42px; gap:6px; align-items:end; }
+  .sign-btn { width:42px; height:42px; padding:0; margin-top:4px; font-size:19px; font-weight:650; }
+  button { width:100%; border:1px solid var(--border); background:#fff; color:var(--text); border-radius:9px; padding:10px; font-size:15px; cursor:pointer; }
+  button:hover { background:#f4f6f8; }
+  .release-box { border:1px solid var(--border); border-radius:12px; padding:11px; margin-bottom:10px; }
+  .release-head { display:flex; align-items:center; justify-content:space-between; gap:8px; margin-bottom:9px; }
+  .release-title { font-weight:650; font-size:.95rem; color:var(--text); }
+  .checkrow { display:flex; align-items:center; gap:7px; font-size:.9rem; color:var(--text); }
+  .checkrow input { width:18px; height:18px; margin:0; }
+  .inactive { opacity:.48; }
+  .metrics { display:grid; grid-template-columns:repeat(4,minmax(0,1fr)); gap:10px; margin-bottom:12px; }
+  .metric { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:10px 12px; min-height:82px; }
+  .metric .k { color:var(--muted); font-size:.8rem; }
+  .metric .v { font-size:1.2rem; font-weight:700; margin-top:3px; }
+  .plotbox { background:var(--panel); border:1px solid var(--border); border-radius:14px; overflow:hidden; }
+  svg { display:block; width:100%; height:auto; touch-action:none; user-select:none; }
+  .zoom-hint { margin-top:8px; font-size:.8rem; color:var(--muted); text-align:center; }
+  .notes { display:grid; grid-template-columns:1fr; gap:10px; margin-top:12px; }
+  .note { background:var(--panel); border:1px solid var(--border); border-radius:12px; padding:12px; }
+  .note h2 { font-size:.95rem; margin:0 0 6px; }
+  .note p { margin:0; color:var(--muted); font-size:.9rem; line-height:1.45; }
+  .legend { display:flex; flex-wrap:wrap; gap:12px; margin:10px 0 0; color:var(--muted); font-size:.83rem; }
+  .sw { display:inline-block; width:13px; height:13px; border-radius:3px; margin-right:5px; vertical-align:-2px; }
+  .small { font-size:.82rem; color:var(--muted); line-height:1.35; margin:10px 0 0; }
+  @media (max-width:800px) {
+    .layout { grid-template-columns:1fr; }
+    .metrics { grid-template-columns:1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Hammer Throw Cage Sector Model – v1.3</h1>
+  <p class="intro">Adjust the cage opening posts and one or two hammer release points. With two active release points, the green area is the common safe sector available from both release positions.</p>
+
+  <div class="layout">
+    <aside class="panel">
+      <fieldset>
+        <legend>Left opening post</legend>
+        <div class="grid2">
+          <label>X (m)<span class="signed-input"><input id="leftX" type="text" inputmode="decimal" value="-1.00"><button type="button" class="sign-btn" data-target="leftX" aria-label="Change sign">±</button></span></label>
+          <label>Y (m)<span class="signed-input"><input id="leftY" type="text" inputmode="decimal" value="7.00"><button type="button" class="sign-btn" data-target="leftY" aria-label="Change sign">±</button></span></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Right opening post</legend>
+        <div class="grid2">
+          <label>X (m)<span class="signed-input"><input id="rightX" type="text" inputmode="decimal" value="3.00"><button type="button" class="sign-btn" data-target="rightX" aria-label="Change sign">±</button></span></label>
+          <label>Y (m)<span class="signed-input"><input id="rightY" type="text" inputmode="decimal" value="7.00"><button type="button" class="sign-btn" data-target="rightY" aria-label="Change sign">±</button></span></label>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Hammer release points</legend>
+
+        <div id="releaseBox1" class="release-box">
+          <div class="release-head">
+            <div class="release-title">Release Point 1</div>
+            <label class="checkrow"><input id="release1Active" type="checkbox" checked> Active</label>
+          </div>
+          <div class="grid2">
+            <label>X (m)<span class="signed-input"><input id="release1X" type="text" inputmode="decimal" value="2.20"><button type="button" class="sign-btn" data-target="release1X" aria-label="Change sign">±</button></span></label>
+            <label>Y (m)<span class="signed-input"><input id="release1Y" type="text" inputmode="decimal" value="0.50"><button type="button" class="sign-btn" data-target="release1Y" aria-label="Change sign">±</button></span></label>
+          </div>
+        </div>
+
+        <div id="releaseBox2" class="release-box inactive">
+          <div class="release-head">
+            <div class="release-title">Release Point 2</div>
+            <label class="checkrow"><input id="release2Active" type="checkbox"> Active</label>
+          </div>
+          <div class="grid2">
+            <label>X (m)<span class="signed-input"><input id="release2X" type="text" inputmode="decimal" value="2.40"><button type="button" class="sign-btn" data-target="release2X" aria-label="Change sign">±</button></span></label>
+            <label>Y (m)<span class="signed-input"><input id="release2Y" type="text" inputmode="decimal" value="0.50"><button type="button" class="sign-btn" data-target="release2Y" aria-label="Change sign">±</button></span></label>
+          </div>
+        </div>
+      </fieldset>
+
+      <fieldset>
+        <legend>Landing sector</legend>
+        <label>Total angle (°)<input id="sectorAngle" type="number" min="1" max="179" step="0.01" value="34.92"></label>
+      </fieldset>
+
+      <button id="resetBtn" type="button">Reset example values</button>
+      <button id="resetViewBtn" type="button" style="margin-top:8px">Reset view</button>
+      <p class="small">Coordinate system: origin (0,0) is the vertex of the landing sector. +X to the right, +Y in the throwing direction.</p>
+    </aside>
+
+    <main>
+      <div class="metrics">
+        <div class="metric"><div class="k">Opening angle(s)</div><div id="apertureAngle" class="v">–</div></div>
+        <div class="metric"><div class="k">Angular overlap</div><div id="overlapAngle" class="v">–</div></div>
+        <div class="metric"><div class="k">Opening width</div><div id="openingWidth" class="v">–</div></div>
+        <div class="metric"><div class="k">Release → opening midpoint</div><div id="releaseDistance" class="v">–</div></div>
+      </div>
+
+      <div class="plotbox">
+        <svg id="plot" viewBox="0 0 900 1050" aria-label="Hammer throw cage and landing sector geometry"></svg>
+      </div>
+      <div class="zoom-hint">Phone/tablet: pinch with two fingers to zoom and move with two fingers to pan. Desktop: mouse wheel zooms, drag to pan.</div>
+
+      <div class="legend">
+        <span><span class="sw" style="background:var(--official)"></span>Official landing sector</span>
+        <span><span class="sw" style="background:var(--free)"></span>Active/common safe sector</span>
+        <span>● posts</span>
+        <span style="color:var(--release)">● release point 1</span>
+        <span style="color:var(--release2)">● release point 2</span>
+      </div>
+
+      <div class="notes">
+        <div class="note">
+          <h2>Boundary directions</h2>
+          <p id="directions">–</p>
+        </div>
+      </div>
+    </main>
+  </div>
+</div>
+
+<script>
+(() => {
+  const svg = document.getElementById('plot');
+  const NS = 'http://www.w3.org/2000/svg';
+
+  const fields = {
+    leftX: document.getElementById('leftX'), leftY: document.getElementById('leftY'),
+    rightX: document.getElementById('rightX'), rightY: document.getElementById('rightY'),
+    release1X: document.getElementById('release1X'), release1Y: document.getElementById('release1Y'),
+    release2X: document.getElementById('release2X'), release2Y: document.getElementById('release2Y'),
+    sectorAngle: document.getElementById('sectorAngle')
+  };
+  const active1 = document.getElementById('release1Active');
+  const active2 = document.getElementById('release2Active');
+  const box1 = document.getElementById('releaseBox1');
+  const box2 = document.getElementById('releaseBox2');
+
+  const outputs = {
+    aperture: document.getElementById('apertureAngle'),
+    overlap: document.getElementById('overlapAngle'),
+    opening: document.getElementById('openingWidth'),
+    releaseDistance: document.getElementById('releaseDistance'),
+    directions: document.getElementById('directions')
+  };
+
+  const W=900, H=1050;
+  const margin={l:55,r:30,t:25,b:45};
+  const worldDefault={xmin:-28,xmax:28,ymin:-3,ymax:84};
+  let world={...worldDefault};
+
+  function el(name, attrs={}, text='') {
+    const n=document.createElementNS(NS,name);
+    for(const [k,v] of Object.entries(attrs)) n.setAttribute(k,v);
+    if(text) n.textContent=text;
+    return n;
+  }
+  function sx(x){ return margin.l+(x-world.xmin)*(W-margin.l-margin.r)/(world.xmax-world.xmin); }
+  function sy(y){ return H-margin.b-(y-world.ymin)*(H-margin.t-margin.b)/(world.ymax-world.ymin); }
+  function parseNum(v){ return Number(String(v).trim().replace(',','.')); }
+  function point(prefix){ return {x:parseNum(fields[prefix+'X'].value),y:parseNum(fields[prefix+'Y'].value)}; }
+  function dist(a,b){ return Math.hypot(a.x-b.x,a.y-b.y); }
+  function d2r(d){ return d*Math.PI/180; }
+  function r2d(r){ return r*180/Math.PI; }
+  function angle(dx,dy){ return Math.atan2(dx,dy); }
+  function at(o,a,r){ return {x:o.x+Math.sin(a)*r,y:o.y+Math.cos(a)*r}; }
+  function normalize(a){ while(a<=-Math.PI)a+=2*Math.PI; while(a>Math.PI)a-=2*Math.PI; return a; }
+  function shortestInterval(a,b){
+    a=normalize(a); b=normalize(b);
+    const d=normalize(b-a);
+    return d>=0?[a,a+d]:[b,b-d];
+  }
+  function makeWorldPolygon(origin,a1,a2,r,steps=120){
+    const pts=[origin];
+    for(let i=0;i<=steps;i++) pts.push(at(origin,a1+(a2-a1)*i/steps,r));
+    return pts;
+  }
+  function polygon(points,attrs={}){
+    return el('polygon',{points:points.map(p=>`${sx(p.x)},${sy(p.y)}`).join(' '),...attrs});
+  }
+  function line(a,b,attrs={}){
+    return el('line',{x1:sx(a.x),y1:sy(a.y),x2:sx(b.x),y2:sy(b.y),...attrs});
+  }
+  function circle(p,rPx,attrs={}){
+    return el('circle',{cx:sx(p.x),cy:sy(p.y),r:rPx,...attrs});
+  }
+  function label(p,text,dx=8,dy=-8,attrs={}){
+    return el('text',{x:sx(p.x)+dx,y:sy(p.y)+dy,'font-size':'13',fill:'var(--text)',...attrs},text);
+  }
+  function arcPath(origin,a1,a2,r,steps=80){
+    const pts=[];
+    for(let i=0;i<=steps;i++) pts.push(at(origin,a1+(a2-a1)*i/steps,r));
+    return pts.map((p,i)=>`${i===0?'M':'L'} ${sx(p.x)} ${sy(p.y)}`).join(' ');
+  }
+
+  // Convex polygon clipping: subject ∩ clip.
+  function signedArea(poly){
+    let a=0;
+    for(let i=0;i<poly.length;i++){
+      const p=poly[i],q=poly[(i+1)%poly.length];
+      a+=p.x*q.y-q.x*p.y;
+    }
+    return a/2;
+  }
+  function inside(p,a,b,ccw){
+    const cross=(b.x-a.x)*(p.y-a.y)-(b.y-a.y)*(p.x-a.x);
+    return ccw ? cross>=-1e-9 : cross<=1e-9;
+  }
+  function segmentIntersection(s,e,a,b){
+    const dx1=e.x-s.x, dy1=e.y-s.y;
+    const dx2=b.x-a.x, dy2=b.y-a.y;
+    const den=dx1*dy2-dy1*dx2;
+    if(Math.abs(den)<1e-12) return {x:e.x,y:e.y};
+    const t=((a.x-s.x)*dy2-(a.y-s.y)*dx2)/den;
+    return {x:s.x+t*dx1,y:s.y+t*dy1};
+  }
+  function intersectConvex(subject,clip){
+    let output=subject.slice();
+    if(output.length<3 || clip.length<3) return [];
+    const ccw=signedArea(clip)>0;
+    for(let j=0;j<clip.length;j++){
+      const A=clip[j], B=clip[(j+1)%clip.length];
+      const input=output.slice();
+      output=[];
+      if(!input.length) break;
+      let S=input[input.length-1];
+      for(const E of input){
+        const Ein=inside(E,A,B,ccw), Sin=inside(S,A,B,ccw);
+        if(Ein){
+          if(!Sin) output.push(segmentIntersection(S,E,A,B));
+          output.push(E);
+        }else if(Sin){
+          output.push(segmentIntersection(S,E,A,B));
+        }
+        S=E;
+      }
+    }
+    return output;
+  }
+
+  function releaseGeometry(P,L,R,drawRadius){
+    const aL=angle(L.x-P.x,L.y-P.y);
+    const aR=angle(R.x-P.x,R.y-P.y);
+    const [amin,amax]=shortestInterval(aL,aR);
+    return {P,aL,aR,amin,amax,aperture:amax-amin,poly:makeWorldPolygon(P,amin,amax,drawRadius)};
+  }
+
+  function drawGrid(){
+    const g=el('g');
+    const xStep=5,yStep=10;
+    const xStart=Math.ceil(world.xmin/xStep)*xStep;
+    const xEnd=Math.floor(world.xmax/xStep)*xStep;
+    const yStart=Math.max(0,Math.ceil(world.ymin/yStep)*yStep);
+    const yEnd=Math.floor(world.ymax/yStep)*yStep;
+
+    for(let x=xStart;x<=xEnd;x+=xStep){
+      g.appendChild(line({x,y:world.ymin},{x,y:world.ymax},{stroke:x===0?'var(--axis)':'var(--grid)','stroke-width':x===0?1.5:1}));
+      if(x!==0) g.appendChild(el('text',{x:sx(x),y:sy(0)+18,'text-anchor':'middle','font-size':'16.5',fill:'var(--muted)'},String(x)));
+    }
+    for(let y=yStart;y<=yEnd;y+=yStep){
+      g.appendChild(line({x:world.xmin,y},{x:world.xmax,y},{stroke:y===0?'var(--axis)':'var(--grid)','stroke-width':y===0?1.5:1}));
+    }
+    g.appendChild(el('text',{x:W-35,y:sy(0)-7,'font-size':'18',fill:'var(--muted)'},'X'));
+    g.appendChild(el('text',{x:sx(0)+8,y:20,'font-size':'18',fill:'var(--muted)'},'Y'));
+    svg.appendChild(g);
+  }
+
+  function drawYAxisLabelsOnTop(){
+    const g=el('g'), yStep=10;
+    const yStart=Math.max(0,Math.ceil(world.ymin/yStep)*yStep);
+    const yEnd=Math.floor(world.ymax/yStep)*yStep;
+    for(let y=yStart;y<=yEnd;y+=yStep){
+      if(y===0) continue;
+      const x=sx(0)+7,yy=sy(y)-4,text=String(y),width=12+text.length*11;
+      g.appendChild(el('rect',{x:x-5,y:yy-18,width,height:24,rx:4,fill:'var(--panel)','fill-opacity':'0.92'}));
+      g.appendChild(el('text',{x,y:yy,'font-size':'16.5',fill:'var(--text)','font-weight':'700'},text));
+    }
+    svg.appendChild(g);
+  }
+
+  function drawReleaseBoundary(g,color,dash){
+    svg.appendChild(line(g.P,at(g.P,g.aL,80),{stroke:color,'stroke-width':'2.5','stroke-dasharray':dash}));
+    svg.appendChild(line(g.P,at(g.P,g.aR,80),{stroke:color,'stroke-width':'2.5','stroke-dasharray':dash}));
+  }
+
+  function updateActiveStyles(){
+    box1.classList.toggle('inactive',!active1.checked);
+    box2.classList.toggle('inactive',!active2.checked);
+  }
+
+  function render(){
+    svg.innerHTML='';
+    drawGrid();
+
+    const L=point('left'),R=point('right');
+    const P1=point('release1'),P2=point('release2');
+    const officialDeg=Math.max(1,Math.min(179,parseNum(fields.sectorAngle.value)||34.92));
+    const half=d2r(officialDeg/2), drawRadius=80, O={x:0,y:0};
+
+    const officialPoly=makeWorldPolygon(O,-half,half,drawRadius);
+    svg.appendChild(polygon(officialPoly,{fill:'var(--official)','fill-opacity':'0.58',stroke:'var(--official-line)','stroke-width':'2'}));
+
+    [50,60,70].forEach(r=>{
+      svg.appendChild(el('path',{d:arcPath(O,-half,half,r),fill:'none',stroke:'var(--official-line)','stroke-width':'1.8','stroke-dasharray':'7 6',opacity:'0.9'}));
+      const lp=at(O,half,r);
+      svg.appendChild(label(lp,`${r} m`,8,-4,{fill:'var(--official-line)','font-size':'24','font-weight':'600'}));
+    });
+
+    const g1=releaseGeometry(P1,L,R,drawRadius);
+    const g2=releaseGeometry(P2,L,R,drawRadius);
+    const active=[];
+    if(active1.checked) active.push({id:1,g:g1,color:'var(--release)'});
+    if(active2.checked) active.push({id:2,g:g2,color:'var(--release2)'});
+
+    // Fill behavior:
+    // one active point -> same behavior as v1.0
+    // two active points -> fill only the exact common intersection
+    if(active.length===1){
+      svg.appendChild(polygon(active[0].g.poly,{
+        fill:'var(--free)','fill-opacity':'0.46',stroke:'var(--free-line)','stroke-width':'2'
+      }));
+    } else if(active.length===2){
+      const common=intersectConvex(active[0].g.poly,active[1].g.poly);
+      if(common.length>=3){
+        svg.appendChild(polygon(common,{
+          fill:'var(--free)','fill-opacity':'0.58',
+          stroke:'var(--free-line)','stroke-width':'2.4'
+        }));
+      }
+      // Show individual sector outlines subtly so worst-case limits remain visible.
+      active.forEach(a=>{
+        svg.appendChild(polygon(a.g.poly,{
+          fill:'none',stroke:'var(--free-line)','stroke-width':'1.3',
+          'stroke-dasharray':'8 7',opacity:'0.55'
+        }));
+      });
+    }
+
+    // Official sector boundaries on top.
+    svg.appendChild(line(O,at(O,-half,drawRadius),{stroke:'var(--official-line)','stroke-width':'2.5','stroke-dasharray':'8 5'}));
+    svg.appendChild(line(O,at(O,half,drawRadius),{stroke:'var(--official-line)','stroke-width':'2.5','stroke-dasharray':'8 5'}));
+
+    // Individual release boundaries. Dashed so inner worst-case limits remain visible inside the common fill.
+    if(active1.checked) drawReleaseBoundary(g1,'var(--free-line)','4 4');
+    if(active2.checked) drawReleaseBoundary(g2,'var(--free-line)','9 5');
+
+    svg.appendChild(line(L,R,{stroke:'var(--point)','stroke-width':'3'}));
+
+    // Points and labels.
+    svg.appendChild(circle(O,5,{fill:'var(--axis)'}));
+    svg.appendChild(circle(L,7,{fill:'var(--point)',stroke:'#fff','stroke-width':'2'}));
+    svg.appendChild(circle(R,7,{fill:'var(--point)',stroke:'#fff','stroke-width':'2'}));
+    svg.appendChild(label(O,'Origin'));
+    svg.appendChild(label(L,'Left post'));
+    svg.appendChild(label(R,'Right post'));
+
+    if(active1.checked){
+      svg.appendChild(circle(P1,7,{fill:'var(--release)',stroke:'#fff','stroke-width':'2'}));
+      svg.appendChild(label(P1,'Release 1',8,-9,{fill:'var(--release)','font-weight':'700'}));
+    }
+    if(active2.checked){
+      svg.appendChild(circle(P2,7,{fill:'var(--release2)',stroke:'#fff','stroke-width':'2'}));
+      svg.appendChild(label(P2,'Release 2',8,17,{fill:'var(--release2)','font-weight':'700'}));
+    }
+
+    outputs.opening.textContent=dist(L,R).toFixed(2)+' m';
+    const M={x:(L.x+R.x)/2,y:(L.y+R.y)/2};
+
+    if(active.length===0){
+      outputs.aperture.textContent='No active point';
+      outputs.overlap.textContent='–';
+      outputs.releaseDistance.textContent='–';
+      outputs.directions.textContent='Activate Release Point 1 and/or Release Point 2 to calculate the available flight sector.';
+    } else {
+      outputs.aperture.textContent=active.map(a=>`RP${a.id}: ${r2d(a.g.aperture).toFixed(2)}°`).join(' / ');
+
+      // Keep the original direction-space landing-sector overlap metric, reporting worst case when both are active.
+      const overlaps=active.map(a=>{
+        const lo=Math.max(a.g.amin,-half),hi=Math.min(a.g.amax,half);
+        return Math.max(0,hi-lo);
+      });
+      outputs.overlap.textContent=r2d(Math.min(...overlaps)).toFixed(2)+'°';
+
+      outputs.releaseDistance.textContent=active.map(a=>`RP${a.id}: ${dist(a.g.P,M).toFixed(2)} m`).join(' / ');
+
+      const parts=active.map(a =>
+        `RP${a.id}: left ${r2d(a.g.aL).toFixed(2)}°, right ${r2d(a.g.aR).toFixed(2)}°, opening ${r2d(a.g.aperture).toFixed(2)}°.`
+      );
+      outputs.directions.textContent=parts.join('  ') + (active.length===2
+        ? ' The green filled area is the exact geometric intersection of the two opening-limited sectors.'
+        : '');
+    }
+
+    drawYAxisLabelsOnTop();
+    updateActiveStyles();
+  }
+
+  Object.values(fields).forEach(f=>f.addEventListener('input',render));
+  active1.addEventListener('change',render);
+  active2.addEventListener('change',render);
+
+  document.querySelectorAll('.sign-btn').forEach(btn=>{
+    btn.addEventListener('click',()=>{
+      const f=fields[btn.dataset.target];
+      const n=parseNum(f.value);
+      f.value=Number.isFinite(n)?String(-n):'-';
+      f.dispatchEvent(new Event('input',{bubbles:true}));
+      f.focus();
+    });
+  });
+
+  function screenToWorld(clientX,clientY){
+    const rect=svg.getBoundingClientRect();
+    const px=(clientX-rect.left)/rect.width,py=(clientY-rect.top)/rect.height;
+    return {x:world.xmin+px*(world.xmax-world.xmin),y:world.ymax-py*(world.ymax-world.ymin)};
+  }
+  function zoomAt(clientX,clientY,factor){
+    const anchor=screenToWorld(clientX,clientY);
+    const width=(world.xmax-world.xmin)*factor,height=(world.ymax-world.ymin)*factor;
+    const rect=svg.getBoundingClientRect();
+    const px=(clientX-rect.left)/rect.width,py=(clientY-rect.top)/rect.height;
+    world={xmin:anchor.x-px*width,xmax:anchor.x+(1-px)*width,ymin:anchor.y-(1-py)*height,ymax:anchor.y+py*height};
+    render();
+  }
+  svg.addEventListener('wheel',e=>{e.preventDefault();zoomAt(e.clientX,e.clientY,e.deltaY>0?1.12:0.89);},{passive:false});
+
+  const pointers=new Map();
+  let lastSingle=null,lastPinch=null;
+
+  svg.addEventListener('pointerdown',e=>{
+    svg.setPointerCapture(e.pointerId);
+    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+    if(pointers.size===1){lastSingle={x:e.clientX,y:e.clientY};lastPinch=null;}
+    else if(pointers.size===2){
+      const pts=[...pointers.values()];
+      lastPinch={dist:Math.hypot(pts[1].x-pts[0].x,pts[1].y-pts[0].y),mid:{x:(pts[0].x+pts[1].x)/2,y:(pts[0].y+pts[1].y)/2}};
+      lastSingle=null;
+    }
+  });
+
+  svg.addEventListener('pointermove',e=>{
+    if(!pointers.has(e.pointerId)) return;
+    pointers.set(e.pointerId,{x:e.clientX,y:e.clientY});
+
+    if(pointers.size===1 && e.pointerType==='mouse' && lastSingle){
+      const rect=svg.getBoundingClientRect();
+      const dx=(e.clientX-lastSingle.x)/rect.width*(world.xmax-world.xmin);
+      const dy=(e.clientY-lastSingle.y)/rect.height*(world.ymax-world.ymin);
+      world={xmin:world.xmin-dx,xmax:world.xmax-dx,ymin:world.ymin+dy,ymax:world.ymax+dy};
+      lastSingle={x:e.clientX,y:e.clientY};
+      render();
+    }
+
+    if(pointers.size===2){
+      const pts=[...pointers.values()];
+      const d=Math.hypot(pts[1].x-pts[0].x,pts[1].y-pts[0].y);
+      const mid={x:(pts[0].x+pts[1].x)/2,y:(pts[0].y+pts[1].y)/2};
+      if(lastPinch && d>8){
+        const before=screenToWorld(lastPinch.mid.x,lastPinch.mid.y);
+        const factor=lastPinch.dist/d;
+        const width=(world.xmax-world.xmin)*factor,height=(world.ymax-world.ymin)*factor;
+        const rect=svg.getBoundingClientRect();
+        const px=(mid.x-rect.left)/rect.width,py=(mid.y-rect.top)/rect.height;
+        world={xmin:before.x-px*width,xmax:before.x+(1-px)*width,ymin:before.y-(1-py)*height,ymax:before.y+py*height};
+        render();
+      }
+      lastPinch={dist:d,mid};
+    }
+  });
+
+  function endPointer(e){
+    pointers.delete(e.pointerId);
+    if(pointers.size===1){
+      const p=[...pointers.values()][0];
+      lastSingle={x:p.x,y:p.y};lastPinch=null;
+    }else{lastSingle=null;lastPinch=null;}
+  }
+  svg.addEventListener('pointerup',endPointer);
+  svg.addEventListener('pointercancel',endPointer);
+
+  document.getElementById('resetViewBtn').addEventListener('click',()=>{
+    world={...worldDefault};
+    render();
+  });
+
+  document.getElementById('resetBtn').addEventListener('click',()=>{
+    const v={
+      leftX:-1,leftY:7,rightX:3,rightY:7,
+      release1X:2.2,release1Y:0.5,
+      release2X:2.4,release2Y:0.5,
+      sectorAngle:34.92
+    };
+    for(const [k,val] of Object.entries(v)) fields[k].value=val;
+    active1.checked=true;
+    active2.checked=false;
+    world={...worldDefault};
+    render();
+  });
+
+  render();
+})();
+</script>
+</body>
+</html>
