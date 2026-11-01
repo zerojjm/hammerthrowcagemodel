@@ -68,7 +68,7 @@
 </head>
 <body>
 <div class="app">
-  <div class="topline"><h1>Hammer Throw Cage Sector Model – v1.4</h1><button id="infoBtn" class="info-button" type="button" aria-label="About this app" title="About this app">?</button></div>
+  <div class="topline"><h1>Hammer Throw Cage Sector Model – v1.7</h1><button id="infoBtn" class="info-button" type="button" aria-label="About this app" title="About this app">?</button></div>
   <p class="intro">Adjust the cage opening posts and one or two hammer release points. With two active release points, the green area is the common safe sector available from both release positions.</p>
 
   <div class="layout">
@@ -116,6 +116,13 @@
       </fieldset>
 
       <fieldset>
+        <legend>Handle clearance</legend>
+        <label class="checkrow"><input id="handleEnabled" type="checkbox"> Show handle-clearance interference</label>
+        <label>Handle offset at gate (cm)<input id="handleOffset" type="number" min="0" max="300" step="5" value="60"></label>
+        <p class="small">Hatched green shows trajectories where clearance at the opening is less than the assumed handle offset. Indicative geometry only; not a collision or safety assessment.</p>
+      </fieldset>
+
+      <fieldset>
         <legend>Landing sector</legend>
         <label>Total angle (°)<input id="sectorAngle" type="number" min="1" max="179" step="0.01" value="34.92"></label>
       </fieldset>
@@ -141,6 +148,7 @@
       <div class="legend">
         <span><span class="sw" style="background:var(--official)"></span>Official landing sector</span>
         <span><span class="sw" style="background:var(--free)"></span>Active/common safe sector</span>
+        <span id="handleLegend" style="display:none"><span class="sw" style="background:repeating-linear-gradient(45deg,#31956b,#31956b 2px,transparent 2px,transparent 6px);border:1px solid #31956b"></span>Insufficient handle clearance</span>
         <span>● posts</span>
         <span style="color:var(--release)">● release point 1</span>
         <span style="color:var(--release2)">● release point 2</span>
@@ -203,6 +211,9 @@
     release2X: document.getElementById('release2X'), release2Y: document.getElementById('release2Y'),
     sectorAngle: document.getElementById('sectorAngle')
   };
+  const handleEnabled=document.getElementById('handleEnabled');
+  const handleOffset=document.getElementById('handleOffset');
+  const handleLegend=document.getElementById('handleLegend');
   const active1 = document.getElementById('release1Active');
   const active2 = document.getElementById('release2Active');
   const box1 = document.getElementById('releaseBox1');
@@ -363,6 +374,8 @@
   function render(){
     svg.innerHTML='';
     drawGrid();
+    handleLegend.style.display=handleEnabled.checked?'':'none';
+    handleOffset.disabled=!handleEnabled.checked;
 
     const L=point('left'),R=point('right');
     const P1=point('release1'),P2=point('release2');
@@ -406,6 +419,37 @@
           'stroke-dasharray':'8 7',opacity:'0.55'
         }));
       });
+    }
+
+    // Approximate handle risk: directions whose perpendicular clearance from
+    // the ball trajectory to the right post is smaller than the handle offset.
+    // The near-right-post angular band is clipped to each release's aperture.
+    // For two release points, hatch both risk bands separately: this indicates
+    // risk for at least one release, not a guaranteed collision for every throw.
+    if(handleEnabled.checked){
+      const offset=Math.max(0,Math.min(300,parseNum(handleOffset.value)||0))/1; // metres, converted below
+      const offsetMetres=offset/100; // input is centimetres
+      if(offsetMetres>0){
+        const defs=el('defs');
+        const pattern=el('pattern',{id:'handleRiskHatch',patternUnits:'userSpaceOnUse',width:'9',height:'9',patternTransform:'rotate(45)'});
+        pattern.appendChild(el('line',{x1:'0',y1:'0',x2:'0',y2:'9',stroke:'#187e54','stroke-width':'3',opacity:'0.85'}));
+        defs.appendChild(pattern);
+        svg.appendChild(defs);
+        active.forEach(a=>{
+          const g=a.g, radius=dist(g.P,R);
+          if(radius<1e-6) return;
+          const delta=Math.asin(Math.min(1,offsetMetres/radius));
+          const rightIsMax=Math.abs(normalize(g.aR-g.amax))<1e-7;
+          const inner=rightIsMax?Math.max(g.amin,g.amax-delta):Math.min(g.amax,g.amin+delta);
+          const low=Math.min(inner,g.aR),high=Math.max(inner,g.aR);
+          if(high-low>1e-8){
+            svg.appendChild(polygon(makeWorldPolygon(g.P,low,high,drawRadius,50),{
+              fill:'url(#handleRiskHatch)',stroke:'#187e54','stroke-width':'1',
+              'stroke-dasharray':'5 4',opacity:'0.95'
+            }));
+          }
+        });
+      }
     }
 
     // Official sector boundaries on top.
@@ -470,6 +514,8 @@
   Object.values(fields).forEach(f=>f.addEventListener('input',render));
   active1.addEventListener('change',render);
   active2.addEventListener('change',render);
+  handleEnabled.addEventListener('change',render);
+  handleOffset.addEventListener('input',render);
 
   document.querySelectorAll('.sign-btn').forEach(btn=>{
     btn.addEventListener('click',()=>{
@@ -565,6 +611,8 @@
     for(const [k,val] of Object.entries(v)) fields[k].value=val;
     active1.checked=true;
     active2.checked=false;
+    handleEnabled.checked=false;
+    handleOffset.value=60;
     world={...worldDefault};
     render();
   });
