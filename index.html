@@ -50,6 +50,16 @@
   .legend { display:flex; flex-wrap:wrap; gap:12px; margin:10px 0 0; color:var(--muted); font-size:.83rem; }
   .sw { display:inline-block; width:13px; height:13px; border-radius:3px; margin-right:5px; vertical-align:-2px; }
   .small { font-size:.82rem; color:var(--muted); line-height:1.35; margin:10px 0 0; }
+  .topline { display:flex; align-items:center; justify-content:space-between; gap:12px; }
+  .info-button { width:auto; min-width:44px; height:40px; padding:5px 13px; font-size:20px; font-weight:700; }
+  .app-footer { text-align:center; margin:20px 0 4px; font-size:.85rem; color:var(--muted); }
+  .info-dialog { width:min(720px,calc(100% - 24px)); max-height:85vh; max-height:85dvh; overflow:auto; border:1px solid var(--border); border-radius:14px; padding:22px; color:var(--text); background:#fff; box-shadow:0 16px 50px #0003; }
+  .info-dialog::backdrop { background:rgba(16,24,40,.55); }
+  .info-dialog h2 { margin:0 0 14px; font-size:1.3rem; }
+  .info-dialog h3 { margin:20px 0 8px; font-size:1rem; }
+  .info-dialog p,.info-dialog li { line-height:1.55; font-size:.94rem; }
+  .info-dialog ul { padding-left:23px; }
+  .info-close { width:auto; float:right; padding:5px 12px; font-size:20px; }
   @media (max-width:800px) {
     .layout { grid-template-columns:1fr; }
     .metrics { grid-template-columns:1fr 1fr; }
@@ -58,7 +68,7 @@
 </head>
 <body>
 <div class="app">
-  <h1>Hammer Throw Cage Sector Model – v1.3</h1>
+  <div class="topline"><h1>Hammer Throw Cage Sector Model – v1.4</h1><button id="infoBtn" class="info-button" type="button" aria-label="About this app" title="About this app">?</button></div>
   <p class="intro">Adjust the cage opening posts and one or two hammer release points. With two active release points, the green area is the common safe sector available from both release positions.</p>
 
   <div class="layout">
@@ -144,10 +154,45 @@
       </div>
     </main>
   </div>
+  <footer class="app-footer">Created by Tero Mäkäläinen · <a href="#" id="aboutLink">About this app</a></footer>
 </div>
+
+<dialog id="infoDialog" class="info-dialog" aria-labelledby="infoTitle">
+  <button id="closeInfoBtn" class="info-close" type="button" aria-label="Close information">×</button>
+  <h2 id="infoTitle">About Hammer Throw Cage Sector Model</h2>
+  <h3>Overview</h3>
+  <p>A simple interactive application for modelling hammer throw cage configurations, visualizing the reachable throwing sector, and identifying potential danger zones.</p>
+  <p>Adjust the positions of the cage opening poles and hammer release points to examine how different configurations affect the available throwing sector.</p>
+  <h3>Background and Motivation</h3>
+  <p>Commonly presented hammer throw cage configurations include a 6.0 m opening positioned approximately 7.0 m from the throwing circle centre, with a movable 2.0 m gate or curtain used to restrict the opening on one side. Similar arrangements are found in existing stadium cage installations.</p>
+  <p>This application helps illustrate potential limitations of these configurations, particularly in hammer throwing. Depending on the hammer release position, the cage opening may:</p>
+  <ul><li>Restrict otherwise valid throws because a cage pole obstructs part of the official landing sector.</li><li>Allow throws outside the official landing sector to pass through the cage opening on the opposite side.</li></ul>
+  <p>These effects can be explored by adjusting the cage opening and hammer release positions in the application.</p>
+  <h3>Applications</h3>
+  <ul><li>Compare different hammer throw cage opening configurations.</li><li>Visualize the range of possible throwing directions from different release positions.</li><li>Identify potential danger zones outside the official landing sector.</li><li>Understand how cage geometry affects athletes' ability to reach the full legal throwing sector.</li><li>Support discussions about improving cage design and positioning.</li></ul>
+  <p>The model may also help assess existing cage installations at athletics facilities.</p>
+  <h3>Important Safety Disclaimer</h3>
+  <p>The hammer release position varies between athletes and individual throws. Actual hammer trajectories also depend on factors that are not included in this simplified two-dimensional geometric model.</p>
+  <p><strong>This application is intended for visualization, education, and preliminary assessment only.</strong></p>
+  <p>It does not provide a complete or validated safety assessment, nor does it define exact danger zones for all possible throwing conditions. Its results must not be used as the sole basis for determining safe spectator areas, cage compliance, or protective equipment requirements.</p>
+  <h3>Use and Development</h3>
+  <p>This project is shared in the hope that it will contribute to a better understanding of hammer throw cage geometry and encourage further improvements in cage design.</p>
+  <p>The ultimate goals are to help athletes achieve valid throws across the full official landing sector and to make hammer throwing safer for athletes, officials, and spectators.</p>
+  <p>Contributions, feedback, and further development are welcome.</p>
+  <h3>License</h3>
+  <p>This project is released under the MIT License. You are free to use, modify, distribute, and incorporate the software into other projects, including commercial applications, subject to the terms of the license. See the LICENSE file in the project's GitHub repository for details.</p>
+  <p><strong>Created by Tero Mäkäläinen</strong></p>
+</dialog>
 
 <script>
 (() => {
+  const infoDialog = document.getElementById('infoDialog');
+  function openInfo(e) { if(e) e.preventDefault(); if (typeof infoDialog.showModal === 'function') infoDialog.showModal(); else infoDialog.setAttribute('open', ''); }
+  function closeInfo() { if (typeof infoDialog.close === 'function') infoDialog.close(); else infoDialog.removeAttribute('open'); }
+  document.getElementById('infoBtn').addEventListener('click', openInfo);
+  document.getElementById('aboutLink').addEventListener('click', openInfo);
+  document.getElementById('closeInfoBtn').addEventListener('click', closeInfo);
+  infoDialog.addEventListener('click', (e) => { if (e.target === infoDialog) closeInfo(); });
   const svg = document.getElementById('plot');
   const NS = 'http://www.w3.org/2000/svg';
 
