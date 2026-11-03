@@ -231,7 +231,10 @@
 
   const W=900, H=1050;
   const margin={l:55,r:30,t:25,b:45};
-  const worldDefault={xmin:-28,xmax:28,ymin:-3,ymax:84};
+  // Equal metres-per-SVG-unit on both axes, including during zoom and pan.
+  // Plot area: 815 x 980 units. For a Y span of 87 m, X must span 87*815/980 m.
+  const defaultHalfWidth=(84-(-3))*(W-margin.l-margin.r)/(H-margin.t-margin.b)/2;
+  const worldDefault={xmin:-defaultHalfWidth,xmax:defaultHalfWidth,ymin:-3,ymax:84};
   let world={...worldDefault};
 
   function el(name, attrs={}, text='') {
