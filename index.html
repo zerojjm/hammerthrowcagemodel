@@ -68,7 +68,7 @@
 </head>
 <body>
 <div class="app">
-  <div class="topline"><h1>Hammer Throw Cage Sector Model – v1.7</h1><button id="infoBtn" class="info-button" type="button" aria-label="About this app" title="About this app">?</button></div>
+  <div class="topline"><h1>Hammer Throw Cage Sector Model – v1.9</h1><button id="infoBtn" class="info-button" type="button" aria-label="About this app" title="About this app">?</button></div>
   <p class="intro">Adjust the cage opening posts and one or two hammer release points. With two active release points, the green area is the common safe sector available from both release positions.</p>
 
   <div class="layout">
@@ -149,6 +149,8 @@
         <span><span class="sw" style="background:var(--official)"></span>Official landing sector</span>
         <span><span class="sw" style="background:var(--free)"></span>Active/common safe sector</span>
         <span id="handleLegend" style="display:none"><span class="sw" style="background:repeating-linear-gradient(45deg,#31956b,#31956b 2px,transparent 2px,transparent 6px);border:1px solid #31956b"></span>Insufficient handle clearance</span>
+        <span><span class="sw" style="background:repeating-linear-gradient(45deg,#a3b5bb 0 2px,#e2ecee 2px 5px);border:1px solid #66818a"></span>Cage netting</span>
+        <span><span class="sw" style="background:#d6d8d9;border:1px solid #92989b"></span>Throwing circles</span>
         <span>● posts</span>
         <span style="color:var(--release)">● release point 1</span>
         <span style="color:var(--release2)">● release point 2</span>
@@ -361,6 +363,57 @@
     svg.appendChild(g);
   }
 
+  // Schematic cage symmetrical about X=0, with a left closing gate.
+  function drawCage(L,R){
+    const g=el('g',{'aria-label':'Schematic symmetrical cage and closing gate'});
+    const auxL={x:L.x-0.8,y:L.y},auxR={x:R.x+0.8,y:R.y};
+    const radius=Math.max(2.5,Math.abs(auxL.x),Math.abs(auxR.x));
+    const leftOuter={x:-radius,y:L.y},rightOuter={x:radius,y:R.y};
+    const baseY=Math.min(0,L.y,R.y);
+    const path=[leftOuter,{x:-radius,y:baseY}];
+    for(let i=1;i<=48;i++){
+      const a=Math.PI+Math.PI*i/48;
+      path.push({x:radius*Math.cos(a),y:baseY+radius*Math.sin(a)});
+    }
+    path.push(rightOuter);
+    function net(points,gate){
+      const d=points.map((p,i)=>(i?'L':'M')+sx(p.x)+' '+sy(p.y)).join(' ');
+      g.appendChild(el('path',{d,fill:'none',stroke:gate?'#e9dfca':'#e0eaed','stroke-width':'11','stroke-linejoin':'round','stroke-linecap':'round',opacity:'0.9'}));
+      g.appendChild(el('path',{d,fill:'none',stroke:gate?'#a18c65':'#66818a','stroke-width':'7','stroke-dasharray':'2 3',opacity:'0.95'}));
+      g.appendChild(el('path',{d,fill:'none',stroke:gate?'#786344':'#45616c','stroke-width':'1.6',opacity:'0.95'}));
+      for(let i=0;i<points.length-1;i++){
+        const a=points[i],b=points[i+1],length=dist(a,b);
+        const steps=Math.max(1,Math.floor(length/0.36));
+        const nx=-(b.y-a.y)/Math.max(length,1e-9),ny=(b.x-a.x)/Math.max(length,1e-9);
+        for(let j=0;j<steps;j++){
+          const t=(j+0.5)/steps,x=a.x+(b.x-a.x)*t,y=a.y+(b.y-a.y)*t;
+          g.appendChild(line({x:x-nx*0.12,y:y-ny*0.12},{x:x+nx*0.12,y:y+ny*0.12},{stroke:gate?'#a18c65':'#63828c','stroke-width':'1.1',opacity:'0.8'}));
+        }
+      }
+    }
+    net(path,false);
+    net([leftOuter,L],true);
+    // Netting on the open side spans the 0.80 m between the editable right post and its auxiliary post.
+    net([R,auxR],false);
+    // The closed-side auxiliary point is a construction reference, not a visible post.
+    // Keep auxL in the cage-width calculation so unusual opening coordinates still render correctly.
+    g.appendChild(circle(auxR,5.5,{fill:'#7e929a',stroke:'#fff','stroke-width':'1.4'}));
+    [leftOuter,rightOuter].forEach(p=>g.appendChild(circle(p,6,{fill:'#526e78',stroke:'#fff','stroke-width':'1.5'})));
+    svg.appendChild(g);
+  }
+
+  function drawThrowingCircles(){
+    const O={x:0,y:0};
+    const rx=Math.abs(sx(1)-sx(0)),ry=Math.abs(sy(1)-sy(0));
+    function disk(r,attrs){
+      return el('ellipse',{cx:sx(O.x),cy:sy(O.y),rx:r*rx,ry:r*ry,...attrs});
+    }
+    // World Athletics nominal internal diameters: discus 2.50 m, hammer 2.135 m.
+    // The annulus is intentionally white, with concrete grey inside the hammer circle.
+    svg.appendChild(disk(1.25,{fill:'#fff',stroke:'#727b81','stroke-width':'1.7'}));
+    svg.appendChild(disk(2.135/2,{fill:'#d4d6d7',stroke:'#69747a','stroke-width':'1.7'}));
+  }
+
   function drawReleaseBoundary(g,color,dash){
     svg.appendChild(line(g.P,at(g.P,g.aL,80),{stroke:color,'stroke-width':'2.5','stroke-dasharray':dash}));
     svg.appendChild(line(g.P,at(g.P,g.aR,80),{stroke:color,'stroke-width':'2.5','stroke-dasharray':dash}));
@@ -374,6 +427,7 @@
   function render(){
     svg.innerHTML='';
     drawGrid();
+    drawThrowingCircles();
     handleLegend.style.display=handleEnabled.checked?'':'none';
     handleOffset.disabled=!handleEnabled.checked;
 
@@ -460,10 +514,12 @@
     if(active1.checked) drawReleaseBoundary(g1,'var(--free-line)','4 4');
     if(active2.checked) drawReleaseBoundary(g2,'var(--free-line)','9 5');
 
-    svg.appendChild(line(L,R,{stroke:'var(--point)','stroke-width':'3'}));
+    drawCage(L,R);
+    // Opening between the posts is deliberately left clear (no connecting net).
+
 
     // Points and labels.
-    svg.appendChild(circle(O,5,{fill:'var(--axis)'}));
+    svg.appendChild(circle(O,2.5,{fill:'var(--axis)'}));
     svg.appendChild(circle(L,7,{fill:'var(--point)',stroke:'#fff','stroke-width':'2'}));
     svg.appendChild(circle(R,7,{fill:'var(--point)',stroke:'#fff','stroke-width':'2'}));
     svg.appendChild(label(O,'Origin'));
